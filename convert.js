@@ -1,42 +1,46 @@
-// No external dependencies - pure JavaScript CSV parsing and XML generation
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const { bank, csvData } = req.body;
+    // Parse body manually — Vercel doesn't auto-parse
+    const body = await new Promise((resolve, reject) => {
+      let data = "";
+      req.on("data", chunk => { data += chunk; });
+      req.on("end", () => {
+        try { resolve(JSON.parse(data)); }
+        catch (e) { reject(new Error("Invalid JSON body")); }
+      });
+      req.on("error", reject);
+    });
+
+    const { bank, csvData } = body;
 
     if (!bank || !csvData) {
       return res.status(400).json({ error: "Bank and CSV data are required." });
     }
 
     let parsed;
-    if (bank === "absa") {
-      parsed = parseAbsa(csvData);
-    } else if (bank === "citi") {
-      parsed = parseCiti(csvData);
-    } else {
-      return res.status(400).json({ error: `Unsupported bank: ${bank}` });
-    }
+    if (bank === "absa") parsed = parseAbsa(csvData);
+    else if (bank === "citi") parsed = parseCiti(csvData);
+    else return res.status(400).json({ error: `Unsupported bank: ${bank}` });
 
     if (!parsed) {
-      return res.status(422).json({ error: "Could not parse the file. Please check the format." });
+      return res.status(422).json({ error: "Could not parse the file." });
     }
 
     if (parsed.transactions.length === 0 && parsed.openingBalance === 0) {
-      return res.status(422).json({ error: "No transactions or balances found. Please check you selected the correct bank and uploaded the right file." });
+      return res.status(422).json({ error: "No transactions or balances found. Check you selected the correct bank and uploaded the right file." });
     }
 
-    const msgId  = "MSG" + Date.now();
-    const stmtId = "STMT" + Date.now();
-    const xml = buildCamt053(parsed, msgId, stmtId);
+    const xml = buildCamt053(parsed, "MSG" + Date.now(), "STMT" + Date.now());
 
-    return res.json({
-      ok: true,
-      xml,
+    return res.status(200).json({
+      ok: true, xml,
       txCount: parsed.transactions.length,
       bank: parsed.bank,
       currency: parsed.currency,
@@ -80,14 +84,11 @@ function parseDt(s) {
 
 function escX(s) {
   return String(s || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 // ── ABSA Kenya parser ─────────────────────────────────────────────────────────
-// Format: Transaction Descriptions | Trans.date | PM | Bank Trans. Type | Receipts | Payments
 function parseAbsa(csv) {
   const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/);
   const txs = []; let ob = null, cb = null, fd = null, td = null;
@@ -103,10 +104,8 @@ function parseAbsa(csv) {
       if (rec > 0 || pay > 0) {
         const cr = rec > 0;
         txs.push({
-          desc: c[0].trim(),
-          date: dt, valDate: dt,
-          amt: cr ? rec : pay,
-          dir: cr ? "CRDT" : "DBIT",
+          desc: c[0].trim(), date: dt, valDate: dt,
+          amt: cr ? rec : pay, dir: cr ? "CRDT" : "DBIT",
           ref: `ABSA-${(c[3]||"TX").trim()}-${dt.replace(/-/g,"")}-${String(txs.length+1).padStart(4,"0")}`,
         });
         if (!fd || dt < fd) fd = dt;
@@ -134,7 +133,6 @@ function parseAbsa(csv) {
 }
 
 // ── Citibank Kenya parser ─────────────────────────────────────────────────────
-// ~200-column CSV with named headers
 function parseCiti(csv) {
   const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/);
   if (lines.length < 2) return null;
@@ -161,15 +159,14 @@ function parseCiti(csv) {
     if (ob === null) { const a = parseAmt(gc(c, "Opening Ledger Balance")); if (a > 0) ob = a; }
     if (cb === null) { const a = parseAmt(gc(c, "Current / Closing Ledger Balance")); if (a > 0) cb = a; }
 
-    const dt     = parseDt(gc(c, "Entry Date").trim());
+    const dt = parseDt(gc(c, "Entry Date").trim());
     const amtStr = gc(c, "Transaction Amount").trim();
     if (!dt || !amtStr) continue;
 
     const raw = parseFloat(amtStr.replace(/[^0-9.-]/g, ""));
     if (isNaN(raw) || raw === 0) continue;
 
-    const amt  = Math.abs(raw);
-    const dir  = raw >= 0 ? "CRDT" : "DBIT";
+    const amt  = Math.abs(raw), dir = raw >= 0 ? "CRDT" : "DBIT";
     const desc = gc(c, "Transaction Description").trim() || gc(c, "Product Type").trim() || "TRANSACTION";
     const extra = gc(c, "Extra Information").trim();
     const pay   = gc(c, "Payment Details").trim();
@@ -196,7 +193,6 @@ function parseCiti(csv) {
 // ── Build CAMT.053 XML ────────────────────────────────────────────────────────
 function buildCamt053(data, msgId, stmtId) {
   const now = new Date().toISOString().replace(/\.\d+Z$/, "+00:00");
-
   const entries = data.transactions.map((tx, i) => {
     const ref = escX(tx.ref || `TX${String(i+1).padStart(6,"0")}`);
     return `

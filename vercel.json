@@ -1,7 +1,8 @@
 {
   "version": 2,
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/public/index.html" }
+  "routes": [
+    { "src": "/api/convert", "dest": "/api/convert.js" },
+    { "src": "/api/login", "dest": "/api/login.js" },
+    { "src": "/(.*)", "dest": "/public/index.html" }
   ]
 }
