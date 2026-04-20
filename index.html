@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CamtBridge — Bank Statement to CAMT.053</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0D1B2A;--navy2:#1A2F45;--gold:#C9A84C;--gold2:#E8C96B;--goldpale:#F5EDD4;
+  --slate:#8A9BB0;--slate2:#C2CDD9;--bg:#F2F5F8;--surface:#fff;
+  --text:#0D1B2A;--muted:#5A6E82;--border:rgba(13,27,42,0.1);
+  --ok:#1D9E75;--okbg:#E1F5EE;--err:#C0392B;--errbg:#FCEBEB;
+  --r:12px;--shadow:0 4px 24px rgba(13,27,42,0.08);
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px}
+
+/* screens */
+.screen{display:none}.screen.active{display:block}
+
+/* ── LOGIN ── */
+.login-page{min-height:100vh;display:flex}
+.login-brand{
+  width:460px;background:var(--navy);padding:4rem 3rem;
+  display:flex;flex-direction:column;justify-content:center;
+  position:relative;overflow:hidden;flex-shrink:0;
+}
+.login-brand::before{content:'';position:absolute;width:560px;height:560px;border-radius:50%;border:1px solid rgba(201,168,76,0.07);top:-220px;right:-180px}
+.login-brand::after{content:'';position:absolute;width:380px;height:380px;border-radius:50%;border:1px solid rgba(201,168,76,0.05);bottom:-140px;left:-60px}
+.brand-logo{width:46px;height:46px;border-radius:12px;background:var(--gold);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:22px;color:var(--navy);margin-bottom:2.5rem}
+.brand-tag{font-family:'DM Serif Display',serif;font-size:36px;color:#fff;line-height:1.2;margin-bottom:1.25rem}
+.brand-tag em{color:var(--gold);font-style:normal}
+.brand-desc{font-size:14px;color:var(--slate);line-height:1.75;margin-bottom:2rem;max-width:300px}
+.brand-pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{padding:4px 12px;border-radius:20px;border:1px solid rgba(201,168,76,0.25);font-size:12px;color:var(--gold2);letter-spacing:.03em}
+
+.login-right{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem}
+.login-card{width:100%;max-width:380px;background:var(--surface);border-radius:16px;padding:2.5rem;box-shadow:var(--shadow);border:1px solid var(--border)}
+.login-card h2{font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:.4rem}
+.login-card>p{font-size:13px;color:var(--muted);margin-bottom:2rem}
+.field{margin-bottom:1rem}
+.field label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.field input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;color:var(--text);outline:none;transition:border-color .2s}
+.field input:focus{border-color:var(--gold)}
+.btn-primary{width:100%;padding:13px;background:var(--navy);border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;color:#fff;cursor:pointer;transition:all .2s;margin-top:.5rem}
+.btn-primary:hover{background:var(--navy2);transform:translateY(-1px)}
+.login-hint{margin-top:1rem;text-align:center;font-size:12px;color:var(--slate)}
+
+/* ── NAV ── */
+.nav{background:var(--navy);height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(201,168,76,0.15)}
+.nav-brand{display:flex;align-items:center;gap:10px}
+.nav-logo{width:30px;height:30px;border-radius:7px;background:var(--gold);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:15px;color:var(--navy)}
+.nav-title{font-family:'DM Serif Display',serif;font-size:17px;color:#fff}
+.nav-title span{color:var(--gold)}
+.nav-right{display:flex;align-items:center;gap:12px}
+.nav-email{font-size:13px;color:var(--slate2)}
+.nav-avatar{width:30px;height:30px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--navy)}
+.btn-logout{background:transparent;border:1px solid rgba(255,255,255,0.15);color:var(--slate2);padding:5px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s}
+.btn-logout:hover{border-color:var(--gold);color:var(--gold)}
+
+/* ── MAIN ── */
+.wrap{max-width:800px;margin:0 auto;padding:2.5rem 1.5rem 5rem}
+.phd{margin-bottom:2rem}
+.phd h1{font-family:'DM Serif Display',serif;font-size:26px;margin-bottom:4px}
+.phd p{font-size:14px;color:var(--muted)}
+
+/* steps */
+.steps{display:flex;align-items:center;margin-bottom:2rem}
+.step{display:flex;align-items:center;gap:8px}
+.step-n{width:27px;height:27px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;border:2px solid var(--slate2);color:var(--slate2);transition:all .3s;flex-shrink:0}
+.step-n.active{border-color:var(--gold);background:var(--gold);color:var(--navy)}
+.step-n.done{border-color:var(--ok);background:var(--ok);color:#fff}
+.step-lbl{font-size:13px;color:var(--muted);font-weight:500}
+.step-lbl.active{color:var(--text)}
+.step-line{flex:1;height:1px;background:var(--slate2);margin:0 10px}
+
+/* card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.5rem;margin-bottom:1.25rem;box-shadow:0 1px 8px rgba(13,27,42,0.04)}
+.card-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:500;margin-bottom:1rem}
+
+/* bank grid */
+.bank-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px}
+.bank-tile{border:1.5px solid var(--border);border-radius:10px;padding:.85rem 1rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:12px;position:relative;user-select:none}
+.bank-tile:hover:not(.soon){border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,0.1)}
+.bank-tile.selected{border-color:var(--gold);background:var(--goldpale)}
+.bank-tile.soon{opacity:.35;cursor:default}
+.bank-icon{width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.bank-icon.absa{background:#CC0000;color:#fff}
+.bank-icon.citi{background:#003B8E;color:#fff}
+.bank-icon.kcb{background:#006B3C;color:#fff}
+.bank-icon.equity{background:#E30613;color:#fff}
+.bank-nm{font-size:13px;font-weight:500}
+.bank-sub{font-size:11px;color:var(--muted)}
+.soon-tag{position:absolute;top:5px;right:8px;font-size:9px;color:var(--muted);letter-spacing:.05em}
+
+/* drop zone */
+.dz{border:2px dashed rgba(13,27,42,0.13);border-radius:var(--r);padding:2.5rem 1.5rem;text-align:center;cursor:pointer;transition:all .2s}
+.dz:hover,.dz.over{border-color:var(--gold);background:var(--goldpale)}
+.dz.has-file{border-color:var(--ok);background:var(--okbg);border-style:solid;cursor:default}
+.dz-icon{width:50px;height:50px;margin:0 auto 1rem;border-radius:13px;background:rgba(13,27,42,0.05);display:flex;align-items:center;justify-content:center}
+.dz-icon svg{width:24px;height:24px}
+.dz-title{font-weight:600;font-size:15px;margin-bottom:4px}
+.dz-sub{font-size:13px;color:var(--muted)}
+.dz-sub.ok{color:var(--ok);font-weight:500}
+
+/* formats */
+.fmt-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.fmt-tile{border:1.5px solid var(--border);border-radius:10px;padding:.85rem 1rem;cursor:pointer;transition:all .2s}
+.fmt-tile:hover:not(.soon){border-color:var(--gold)}
+.fmt-tile.selected{border-color:var(--gold);background:var(--goldpale)}
+.fmt-tile.soon{opacity:.35;cursor:default}
+.fmt-nm{font-size:13px;font-weight:600;margin-bottom:2px}
+.fmt-desc{font-size:11px;color:var(--muted)}
+
+/* convert btn */
+.btn-convert{width:100%;padding:15px;margin-top:1.25rem;background:var(--navy);border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;color:#fff;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px}
+.btn-convert:hover:not(:disabled){background:var(--navy2);transform:translateY(-1px)}
+.btn-convert:disabled{opacity:.35;cursor:not-allowed}
+
+.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* loading */
+.loading{margin-top:1rem;display:none}
+.lb{height:3px;background:rgba(201,168,76,.2);border-radius:2px;overflow:hidden;margin-bottom:8px}
+.lbf{height:100%;background:var(--gold);border-radius:2px;width:0;transition:width .5s ease}
+.lmsg{font-size:13px;color:var(--muted);text-align:center}
+
+/* error */
+.errbox{background:var(--errbg);border:1px solid rgba(192,57,43,.2);border-radius:8px;padding:.85rem 1rem;margin-top:1rem;font-size:13px;color:var(--err);display:none}
+
+/* result */
+.result{margin-top:1.5rem;display:none}
+.res-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+.res-hd{background:var(--navy);padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between}
+.res-hd-title{font-family:'DM Serif Display',serif;font-size:18px;color:#fff}
+.res-actions{display:flex;gap:8px}
+.bsm{padding:7px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s}
+.bghost{background:transparent;border:1px solid rgba(255,255,255,.22);color:#fff}
+.bghost:hover{border-color:var(--gold);color:var(--gold)}
+.bgold{background:var(--gold);border:none;color:var(--navy)}
+.bgold:hover{background:var(--gold2)}
+.res-meta{padding:.85rem 1.5rem;background:var(--goldpale);border-top:1px solid rgba(201,168,76,.2);display:flex;gap:2rem;flex-wrap:wrap}
+.mi{font-size:12px}.mk{color:var(--muted)}.mv{font-weight:600}
+.xml-out{padding:1.25rem 1.5rem;font-family:'DM Mono',monospace;font-size:12px;line-height:1.7;color:var(--navy);max-height:380px;overflow-y:auto;overflow-x:auto;background:#F1F4F8;white-space:pre;border-top:1px solid var(--border)}
+.xt{color:#8B2FC9}.xa{color:#B06000}.xv{color:#1D7035}.xc{color:#8A9BB0;font-style:italic}
+.btn-reset{width:100%;padding:13px;margin-top:1rem;background:transparent;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;color:var(--muted);cursor:pointer;transition:all .2s}
+.btn-reset:hover{border-color:var(--navy);color:var(--navy)}
+
+/* toast */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--navy);color:#fff;padding:11px 18px;border-radius:9px;font-size:13px;border-left:3px solid var(--gold);box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:999;transform:translateY(20px);opacity:0;pointer-events:none;transition:all .25s ease}
+.toast.show{transform:translateY(0);opacity:1}
+
+input[type="file"]{display:none}
+@media(max-width:680px){.login-brand{display:none}.fmt-row{grid-template-columns:1fr}.res-meta{gap:1rem}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="screen-login" class="screen active">
+  <div class="login-page">
+    <div class="login-brand">
+      <div class="brand-logo">C</div>
+      <div class="brand-tag">Convert statements<br>to <em>CAMT.053</em><br>instantly.</div>
+      <p class="brand-desc">Upload a PDF or CSV bank statement from any supported Kenyan bank and get a standards-compliant ISO 20022 CAMT.053 XML — ready for your ERP or treasury system.</p>
+      <div class="brand-pills">
+        <span class="pill">ABSA Kenya</span>
+        <span class="pill">Citibank Kenya</span>
+        <span class="pill">ISO 20022</span>
+        <span class="pill">CAMT.053</span>
+      </div>
+    </div>
+    <div class="login-right">
+      <div class="login-card">
+        <h2>Welcome back</h2>
+        <p>Sign in to your CamtBridge account</p>
+        <div class="field">
+          <label>Email address</label>
+          <input type="email" id="lemail" placeholder="treasury@company.co.ke" value="demo@company.co.ke">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="lpw" placeholder="••••••••" value="password" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <button class="btn-primary" onclick="doLogin()">Sign in</button>
+        <p class="login-hint">Demo — any email + "password"</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="screen-main" class="screen">
+  <nav class="nav">
+    <div class="nav-brand">
+      <div class="nav-logo">C</div>
+      <div class="nav-title">Camt<span>Bridge</span></div>
+    </div>
+    <div class="nav-right">
+      <span class="nav-email" id="nav-email"></span>
+      <div class="nav-avatar" id="nav-avatar">CB</div>
+      <button class="btn-logout" onclick="doLogout()">Sign out</button>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <div class="phd">
+      <h1>Convert Statement</h1>
+      <p>Select your bank, upload a statement, and download the CAMT.053 XML.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step"><div class="step-n active" id="sn1">1</div><div class="step-lbl active" id="sl1">Bank</div></div>
+      <div class="step-line"></div>
+      <div class="step"><div class="step-n" id="sn2">2</div><div class="step-lbl" id="sl2">Upload</div></div>
+      <div class="step-line"></div>
+      <div class="step"><div class="step-n" id="sn3">3</div><div class="step-lbl" id="sl3">Convert</div></div>
+    </div>
+
+    <!-- Bank -->
+    <div class="card">
+      <div class="card-lbl">Select bank · Kenya</div>
+      <div class="bank-grid">
+        <div class="bank-tile" id="bank-absa" onclick="selBank('absa')">
+          <div class="bank-icon absa">ABSA</div>
+          <div><div class="bank-nm">ABSA</div><div class="bank-sub">Kenya</div></div>
+        </div>
+        <div class="bank-tile" id="bank-citi" onclick="selBank('citi')">
+          <div class="bank-icon citi">CITI</div>
+          <div><div class="bank-nm">Citibank</div><div class="bank-sub">Kenya</div></div>
+        </div>
+        <div class="bank-tile soon">
+          <div class="bank-icon kcb">KCB</div>
+          <div><div class="bank-nm">KCB Bank</div><div class="bank-sub">Kenya</div></div>
+          <span class="soon-tag">Soon</span>
+        </div>
+        <div class="bank-tile soon">
+          <div class="bank-icon equity">EBK</div>
+          <div><div class="bank-nm">Equity Bank</div><div class="bank-sub">Kenya</div></div>
+          <span class="soon-tag">Soon</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload -->
+    <div class="card">
+      <div class="card-lbl">Upload statement</div>
+      <div class="dz" id="dz" onclick="document.getElementById('fi').click()" ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
+        <div class="dz-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#8A9BB0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+          </svg>
+        </div>
+        <div class="dz-title" id="dz-title">Drop your statement here</div>
+        <div class="dz-sub" id="dz-sub">or click to browse · CSV or XLSX</div>
+        <input type="file" id="fi" accept=".csv,.xlsx,.xls" onchange="onFile(event)">
+      </div>
+    </div>
+
+    <!-- Format -->
+    <div class="card">
+      <div class="card-lbl">Output format</div>
+      <div class="fmt-row">
+        <div class="fmt-tile selected">
+          <div class="fmt-nm">CAMT.053</div>
+          <div class="fmt-desc">ISO 20022 · Bank-to-customer</div>
+        </div>
+        <div class="fmt-tile soon">
+          <div class="fmt-nm">MT940</div>
+          <div class="fmt-desc">SWIFT legacy (coming soon)</div>
+        </div>
+        <div class="fmt-tile soon">
+          <div class="fmt-nm">OFX / QIF</div>
+          <div class="fmt-desc">Open Financial Exchange (soon)</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-convert" id="btn-conv" onclick="doConvert()" disabled>
+      <div class="spinner" id="spin"></div>
+      <span id="btn-lbl">Convert to CAMT.053</span>
+    </button>
+
+    <div class="errbox" id="errbox"></div>
+
+    <div class="loading" id="loading">
+      <div class="lb"><div class="lbf" id="lbf"></div></div>
+      <div class="lmsg" id="lmsg">Initialising…</div>
+    </div>
+
+    <!-- Result -->
+    <div class="result" id="result">
+      <div class="res-card">
+        <div class="res-hd">
+          <div class="res-hd-title">CAMT.053 Output</div>
+          <div class="res-actions">
+            <button class="bsm bghost" onclick="copyXml()">Copy XML</button>
+            <button class="bsm bgold" onclick="dlXml()">Download .xml</button>
+          </div>
+        </div>
+        <div class="res-meta" id="res-meta"></div>
+        <div class="xml-out" id="xml-out"></div>
+      </div>
+      <button class="btn-reset" onclick="resetAll()">Convert another statement</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let bank=null,file=null,xmlOut='';
+
+function doLogin(){
+  const em=document.getElementById('lemail').value.trim()||'demo@company.co.ke';
+  document.getElementById('nav-email').textContent=em;
+  document.getElementById('nav-avatar').textContent=em.slice(0,2).toUpperCase();
+  show('main');
+}
+function doLogout(){show('login');resetAll()}
+function show(s){document.querySelectorAll('.screen').forEach(e=>e.classList.remove('active'));document.getElementById('screen-'+s).classList.add('active')}
+
+function setStep(n,st){
+  const num=document.getElementById('sn'+n),lbl=document.getElementById('sl'+n);
+  num.className='step-n '+st;lbl.className='step-lbl'+(st==='active'?' active':'');
+  num.textContent=st==='done'?'✓':n;
+}
+
+function selBank(b){
+  bank=b;
+  document.querySelectorAll('.bank-tile:not(.soon)').forEach(t=>t.classList.remove('selected'));
+  document.getElementById('bank-'+b).classList.add('selected');
+  setStep(1,'done');setStep(2,file?'done':'active');
+  chkReady();
+}
+
+function onFile(e){if(e.target.files[0])setFile(e.target.files[0])}
+function dzOver(e){e.preventDefault();document.getElementById('dz').classList.add('over')}
+function dzLeave(){document.getElementById('dz').classList.remove('over')}
+function dzDrop(e){e.preventDefault();document.getElementById('dz').classList.remove('over');if(e.dataTransfer.files[0])setFile(e.dataTransfer.files[0])}
+
+function setFile(f){
+  file=f;
+  document.getElementById('dz').classList.add('has-file');
+  document.getElementById('dz-title').textContent=f.name;
+  document.getElementById('dz-sub').className='dz-sub ok';
+  document.getElementById('dz-sub').textContent=(f.size/1024).toFixed(1)+' KB · Click to replace';
+  if(bank)setStep(2,'done');
+  chkReady();
+}
+
+function chkReady(){
+  const ok=!!(bank&&file);
+  document.getElementById('btn-conv').disabled=!ok;
+  if(ok)setStep(3,'active');
+}
+
+const LSTEPS=[[10,'Uploading statement…'],[30,'Parsing transactions…'],[55,'Mapping to CAMT.053 schema…'],[75,'Validating ISO 20022 fields…'],[90,'Building XML document…']];
+let ltimer=null;
+
+function startLoad(){
+  const lw=document.getElementById('loading'),lf=document.getElementById('lbf'),lm=document.getElementById('lmsg');
+  lw.style.display='block';lf.style.width='5%';lm.textContent=LSTEPS[0][1];
+  let i=0;
+  ltimer=setInterval(()=>{i=Math.min(i+1,LSTEPS.length-1);lf.style.width=LSTEPS[i][0]+'%';lm.textContent=LSTEPS[i][1];if(i===LSTEPS.length-1)clearInterval(ltimer)},2000);
+}
+function stopLoad(){clearInterval(ltimer);document.getElementById('lbf').style.width='100%';setTimeout(()=>document.getElementById('loading').style.display='none',400)}
+
+async function doConvert(){
+  const btn=document.getElementById('btn-conv'),lbl=document.getElementById('btn-lbl'),sp=document.getElementById('spin'),eb=document.getElementById('errbox');
+  eb.style.display='none';document.getElementById('result').style.display='none';
+  btn.disabled=true;sp.style.display='block';lbl.textContent='Converting…';
+  startLoad();
+  try{
+    const csvData=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsText(file)});
+    const r=await fetch('/api/convert',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({bank,csvData})
+    });
+    const d=await r.json();
+    if(!d.ok)throw new Error(d.error||'Conversion failed');
+    xmlOut=d.xml;
+    stopLoad();setStep(3,'done');
+    showResult(d);
+  }catch(e){
+    stopLoad();
+    eb.textContent='✕  '+e.message;eb.style.display='block';
+  }finally{
+    btn.disabled=false;sp.style.display='none';lbl.textContent='Convert to CAMT.053';
+    btn.disabled=!(bank&&file);
+  }
+}
+
+function showResult(d){
+  const tc=(d.xml.match(/<Ntry>/g)||[]).length;
+  const ob=d.openingBalance!=null?'KES '+Number(d.openingBalance).toLocaleString('en-KE',{minimumFractionDigits:2}):'—';
+  const cb=d.closingBalance!=null?'KES '+Number(d.closingBalance).toLocaleString('en-KE',{minimumFractionDigits:2}):'—';
+  document.getElementById('res-meta').innerHTML=`
+    <div class="mi"><span class="mk">Bank: </span><span class="mv">${d.bank}</span></div>
+    <div class="mi"><span class="mk">Entries: </span><span class="mv">${tc}</span></div>
+    <div class="mi"><span class="mk">Opening: </span><span class="mv">${ob}</span></div>
+    <div class="mi"><span class="mk">Closing: </span><span class="mv">${cb}</span></div>
+  `;
+  document.getElementById('xml-out').innerHTML=hl(d.xml);
+  const rw=document.getElementById('result');rw.style.display='block';
+  setTimeout(()=>rw.scrollIntoView({behavior:'smooth',block:'start'}),80);
+}
+
+function hl(xml){
+  return xml.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/(&lt;\?xml[^?]*\?&gt;)/g,'<span class="xc">$1</span>')
+    .replace(/(&lt;!--[\s\S]*?--&gt;)/g,'<span class="xc">$1</span>')
+    .replace(/(&lt;\/?)([\w:]+)/g,'$1<span class="xt">$2</span>')
+    .replace(/([\w:]+)=(&quot;[^"]*&quot;)/g,'<span class="xa">$1</span>=<span class="xv">$2</span>');
+}
+
+function copyXml(){navigator.clipboard.writeText(xmlOut).then(()=>toast('XML copied!'))}
+function dlXml(){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([xmlOut],{type:'application/xml'}));
+  a.download=`camt053_${bank}_kenya_${new Date().toISOString().split('T')[0]}.xml`;
+  a.click();toast('Downloading…');
+}
+function resetAll(){
+  bank=null;file=null;xmlOut='';
+  document.querySelectorAll('.bank-tile:not(.soon)').forEach(t=>t.classList.remove('selected'));
+  const dz=document.getElementById('dz');dz.classList.remove('has-file','over');
+  document.getElementById('dz-title').textContent='Drop your statement here';
+  document.getElementById('dz-sub').textContent='or click to browse · CSV or XLSX';
+  document.getElementById('dz-sub').className='dz-sub';
+  document.getElementById('fi').value='';
+  document.getElementById('result').style.display='none';
+  document.getElementById('errbox').style.display='none';
+  document.getElementById('btn-conv').disabled=true;
+  [1,2,3].forEach(n=>setStep(n,n===1?'active':''));
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000)}
+</script>
+</body>
+</html>
