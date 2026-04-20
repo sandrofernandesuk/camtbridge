@@ -1,8 +1,5 @@
 {
   "name": "camtbridge",
   "version": "1.0.0",
-  "description": "Bank statement to CAMT.053 converter",
-  "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0"
-  }
+  "description": "Bank statement to CAMT.053 converter - no dependencies"
 }
